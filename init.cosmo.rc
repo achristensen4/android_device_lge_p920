@@ -317,7 +317,9 @@ loglevel 3
 # Disable fb1 wonki.choi@lge.com
     write /sys/devices/platform/omapfb/graphics/fb1/overlays ""
     write /sys/devices/platform/omapdss/overlay1/enabled 0
-#    write /sys/devices/platform/omapdss/overlay1/manager "2lcd"
+    write /sys/devices/platform/omapdss/overlay1/manager "2lcd"
+    
+    
 # Seting for HDMI plug-in wonki.choi@lge.com
     write /sys/devices/platform/omapdss/display1/enabled 0
     write /sys/devices/platform/omapdss/display1/hpd_enabled 1
@@ -428,10 +430,10 @@ on fs
 
 # Boost the CPU for 60 sec for boot optimization
     write /sys/devices/system/cpu/cpufreq/hotplug/boost_timeout 60000000
-    write /sys/devices/system/cpu/cpu0/cpufreq/boost_cpufreq 1
+    write /sys/devices/system/cpu/cpu0/cpufreq/boost_cpufreq 0
     write /sys/devices/system/cpu/cpufreq/hotplug/boost_timeout 3000000
 
-    mount ext4 /dev/block/mmcblk0p7 /system ro noatime barrier=1 wait
+    mount ext4 /dev/block/mmcblk0p7 /system rw noatime barrier=1 wait
     mount ext4 /dev/block/mmcblk0p8 /data nosuid nodev noatime barrier=1 wait
     chown system system /data
     chmod 0771 /data
@@ -463,19 +465,19 @@ on post-fs
     write /debug/pm_debug/smartreflex/sr_mpu/autocomp 1
 
     # Enable off mode by default
-    write /debug/pm_debug/enable_off_mode 1
+    write /debug/pm_debug/enable_off_mode 0
 #LGE_CHANGE_E [kibum.lee@lge.com] 2010-12-09, 27.8.2 patch, 27.10.1 patch
 
     # once everything is setup, no need to modify /
-    mount rootfs rootfs / ro remount
+    mount rootfs rootfs / rw remount
 
     # We chown/chmod /data again so because mount is run as root + defaults
     chown system system /data
     chmod 0771 /data
 
     # Mount compressed filesystems
-    #mount squashfs loop@/system/lib/modules/modules.sqf /system/lib/modules ro
-    #mount squashfs loop@/system/xbin/xbin.sqf /system/xbin ro
+    mount squashfs loop@/system/lib/modules/modules.sqf /system/lib/modules rw
+    mount squashfs loop@/system/xbin/xbin.sqf /system/xbin rw
 
     # Create dump dir and collect dumps.
     # Do this before we mount cache so eventually we can use cache for
@@ -706,8 +708,6 @@ service ueventd /sbin/ueventd
     critical
 
 service console /system/bin/sh
-    console
-    disabled
     user shell
     group log
 
@@ -728,11 +728,10 @@ on property:ro.product.device=p920
 
 # adbd is controlled by the persist.service.adb.enable system property
 service adbd /sbin/adbd
-    disabled
 
 # adbd on at boot in emulator
-#on property:ro.kernel.qemu=1
-#    start adbd
+on property:ro.kernel.qemu=1
+start adbd
 
 on property:persist.service.adb.enable=1
     start adbd
@@ -754,7 +753,6 @@ service servicemanager /system/bin/servicemanager
 
 service vold /system/bin/vold
     socket vold stream 0660 root mount
-    ioprio be 2
 
 service netd /system/bin/netd
     socket netd stream 0660 root system
@@ -778,12 +776,10 @@ service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-sys
 service media /system/bin/mediaserver
     user media
     group system audio camera graphics inet net_bt net_bt_admin net_raw
-    ioprio rt 4
 
 service bootanim /system/bin/bootanimation
     user graphics
     group graphics
-    disabled
     oneshot
 
 service dbus /system/bin/dbus-daemon --system --nofork
@@ -797,30 +793,25 @@ service bluetoothd /system/bin/bluetoothd -n
     # init.rc does not yet support applying capabilities, so run as root and
     # let bluetoothd drop uid to bluetooth with the right linux capabilities
     group bluetooth net_bt_admin misc
-    disabled
 
 service hfag /system/bin/sdptool add --channel=10 HFAG
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service hsag /system/bin/sdptool add --channel=11 HSAG
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service opush /system/bin/sdptool add --channel=12 OPUSH
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service pbap /system/bin/sdptool add --channel=19 PBAP
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service installd /system/bin/installd
@@ -830,14 +821,12 @@ service racoon /system/bin/racoon
     socket racoon stream 600 system system
     # racoon will setuid to vpn after getting necessary resources.
     group net_admin
-    disabled
     oneshot
 
 service mtpd /system/bin/mtpd
     socket mtpd stream 600 system system
     user vpn
     group vpn net_admin net_raw
-    disabled
     oneshot
 
 service keystore /system/bin/keystore /data/misc/keystore
@@ -847,72 +836,57 @@ service keystore /system/bin/keystore /data/misc/keystore
 
 service dumpstate /system/bin/dumpstate -s
     socket dumpstate stream 0660 shell log
-    disabled
     oneshot
 
 service enable-tiwlink /system/bin/enable-tiwlink
-    disabled
     oneshot
 
-service wlan_loader /system/bin/wlan_loader \
+service wlan_loader /system/bin/wlan_loader
     -f /system/etc/wifi/firmware.bin -i /system/etc/wifi/tiwlan.ini -e /data/misc/wifi/nvs_map.bin
-     disabled
      oneshot
 
-service wlan_ap_loader /system/bin/tiap_loader \
+service wlan_ap_loader /system/bin/tiap_loader
     -i /system/etc/wifi/softap/tiwlan_ap.ini -f /system/etc/wifi/softap/firmware_ap.bin -e /data/misc/wifi/nvs_map.bin
-    disabled
     oneshot
 
 service ifcfg_ti /system/bin/ifconfig tiwlan0 up
-    disabled
     oneshot
 
 service map /system/bin/sdptool add --channel=16 MAS
     user bluetooth
     group bluetooth net_bt_admin
-    disabled
     oneshot
 
 service wpa_supplicant /system/bin/wpa_supplicant -Dtiwlan0 -itiwlan0 -c/data/misc/wifi/wpa_supplicant.conf
     socket wpa_tiwlan0 dgram 660 wifi wifi
-    disabled
     oneshot
 
 service dhcpcd_tiwlan0 /system/bin/dhcpcd -BKA -d tiwlan0  # LGE_AUTO_IP - enable IPv4LL & ARP (DLNA, 2010.10.19)
-    disabled
     oneshot
 
 service iprenew_tiwlan0 /system/bin/dhcpcd -n tiwlan0
-    disabled
     oneshot
 
 service hostapd /system/bin/hostap -dd /data/misc/wifi/hostapd.conf
-    disabled
     oneshot
 
 service wlan_precheck /system/bin/wlan-precheck
-    disabled
     oneshot
 
 service tiwlan_if_down /system/bin/ifconfig tiwlan0 down
-    disabled
     oneshot
 
 service ifcfg_tiap /system/bin/ifconfig tiap0 192.168.43.1 netmask 255.255.255.0 up
-    disabled
     oneshot
 
 service rawip_rmnet1 /system/bin/init.vsnet 1 up
    user root
    group radio cache inet misc net_admin net_raw
-   disabled
    oneshot
 
 service rmnet1_down /system/bin/init.vsnet 1 down
    user root
    group radio cache inet misc net_admin net_raw
-   disabled
    oneshot
 
 # load IVA firmware
@@ -925,13 +899,11 @@ service baseimage /system/bin/syslink_daemon.out /system/base_image_sys_m3.xem3 
 service uim /system/bin/uim-sysfs
     user root
     group media bluetooth
-    disabled
     oneshot
 
 service hciattach /system/bin/hciattach -l
     user root
     group bluetooth net_bt_admin misc
-    disabled
     oneshot
 
 ## GPS
@@ -940,6 +912,4 @@ service glgps /system/bin/glgps -c /system/etc/gps_brcm_conf.xml
     group net_raw sdcard_rw system net_admin inet
 
 service hwprops /sbin/hwprops
-    disabled
     oneshot
-
